@@ -25,9 +25,11 @@ class MainActivity : Activity() {
             )
         )
 
-        // Прицел по центру экрана
+        // Прицел по центру экрана (не перехватывает касания)
+        val crosshair = CrosshairView(this)
+        crosshair.isClickable = false
         root.addView(
-            CrosshairView(this),
+            crosshair,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
