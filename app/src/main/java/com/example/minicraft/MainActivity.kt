@@ -25,6 +25,15 @@ class MainActivity : Activity() {
             )
         )
 
+        // Прицел по центру экрана
+        root.addView(
+            CrosshairView(this),
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+
         val input = gameView.input
         val start = Gravity.BOTTOM or Gravity.START
         val end = Gravity.BOTTOM or Gravity.END
