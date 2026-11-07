@@ -43,8 +43,15 @@ class MainActivity : Activity() {
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-    private fun holdButton(root: FrameLayout, text: String, gravity: Int,
-                           left: Int, bottom: Int, right: Int, onHold: (Boolean) -> Unit) {
+    private fun holdButton(
+        root: FrameLayout,
+        text: String,
+        gravity: Int,
+        left: Int,
+        bottom: Int,
+        right: Int,
+        onHold: (Boolean) -> Unit
+    ) {
         val b = Button(this)
         b.text = text
         b.textSize = 24f
@@ -58,16 +65,43 @@ class MainActivity : Activity() {
         b.layoutParams = lp
         b.setOnTouchListener { v, e ->
             when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { onHold(true); v.isPressed = true; true }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { onHold(false); v.isPressed = false; true }
+                MotionEvent.ACTION_DOWN -> {
+                    onHold(true)
+                    v.isPressed = true
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    onHold(false)
+                    v.isPressed = false
+                    true
+                }
                 else -> true
             }
         }
         root.addView(b)
     }
 
-    private fun clickButton(root: FrameLayout, text: String, gravity: Int,
-                            left: Int, bottom: Int, right: Int, onClick: () -> Unit) {
+    private fun clickButton(
+        root: FrameLayout,
+        text: String,
+        gravity: Int,
+        left: Int,
+        bottom: Int,
+        right: Int,
+        onClick: () -> Unit
+    ) {
         val b = Button(this)
         b.text = text
-        b.textSize
+        b.textSize = 24f
+        b.alpha = 0.5f
+        val size = dp(56)
+        val lp = FrameLayout.LayoutParams(size, size)
+        lp.gravity = gravity
+        lp.leftMargin = dp(left)
+        lp.rightMargin = dp(right)
+        lp.bottomMargin = dp(bottom)
+        b.layoutParams = lp
+        b.setOnClickListener { onClick() }
+        root.addView(b)
+    }
+}
