@@ -6,11 +6,12 @@
         android:required="true" />
 
     <application
-        android:allowBackup="true"
-        android:label="MiniCraft"
-        android:supportsRtl="true"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-
+    android:allowBackup="true"
+    android:hardwareAccelerated="true"
+    android:label="MiniCraft"
+    android:supportsRtl="true"
+    android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
