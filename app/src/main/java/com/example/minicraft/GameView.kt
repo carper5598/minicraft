@@ -12,10 +12,11 @@ class GameView(context: Context) : GLSurfaceView(context) {
     private var lastY = 0f
 
     init {
-        setEGLContextClientVersion(2)
-        setRenderer(renderer)
-        renderMode = RENDERMODE_CONTINUOUSLY
-    }
+    setEGLContextClientVersion(2)
+    setEGLConfigChooser(8, 8, 8, 8, 16, 0)
+    setRenderer(renderer)
+    renderMode = RENDERMODE_CONTINUOUSLY
+}
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
