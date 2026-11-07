@@ -3,6 +3,7 @@ package com.example.minicraft
 import android.content.Context
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.opengl.GLUtils
 import android.opengl.Matrix
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -23,8 +24,11 @@ class GameRenderer(
 
     private var program = 0
     private var aPos = 0
-    private var aColor = 0
+    private var aUV = 0
+    private var aShade = 0
     private var uMVP = 0
+    private var uTex = 0
+    private var textureId = 0
 
     private var vertexBuffer: FloatBuffer? = null
     private var vertexCount = 0
@@ -45,6 +49,10 @@ class GameRenderer(
     private val view = FloatArray(16)
     private val mvp = FloatArray(16)
 
+    private val playerHalfWidth = 0.3
+    private val playerHeight = 1.8
+    private val eyeHeight = 1.62
+
     fun addLook(dx: Float, dy: Float) {
         yaw -= dx * 0.005f
         pitch -= dy * 0.005f
@@ -58,8 +66,12 @@ class GameRenderer(
 
         program = createProgram()
         aPos = GLES20.glGetAttribLocation(program, "aPos")
-        aColor = GLES20.glGetAttribLocation(program, "aColor")
+        aUV = GLES20.glGetAttribLocation(program, "aUV")
+        aShade = GLES20.glGetAttribLocation(program, "aShade")
         uMVP = GLES20.glGetUniformLocation(program, "uMVP")
+        uTex = GLES20.glGetUniformLocation(program, "uTex")
+
+        textureId = loadTexture()
 
         meshDirty = true
         lastTime = System.nanoTime()
@@ -89,7 +101,7 @@ class GameRenderer(
         Matrix.perspectiveM(proj, 0, 70f, aspect, 0.1f, 100f)
 
         val eyeX = px
-        val eyeY = py + 1.62
+        val eyeY = py + eyeHeight
         val eyeZ = pz
         val d = direction()
 
@@ -103,20 +115,32 @@ class GameRenderer(
         Matrix.multiplyMM(mvp, 0, proj, 0, view, 0)
         GLES20.glUniformMatrix4fv(uMVP, 1, false, mvp, 0)
 
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
+        GLES20.glUniform1i(uTex, 0)
+
         val buf = vertexBuffer
         if (buf != null && vertexCount > 0) {
+            // stride = 6 float: xyz + uv + shade
+            val stride = 6 * 4
+
             buf.position(0)
             GLES20.glEnableVertexAttribArray(aPos)
-            GLES20.glVertexAttribPointer(aPos, 3, GLES20.GL_FLOAT, false, 24, buf)
+            GLES20.glVertexAttribPointer(aPos, 3, GLES20.GL_FLOAT, false, stride, buf)
 
             buf.position(3)
-            GLES20.glEnableVertexAttribArray(aColor)
-            GLES20.glVertexAttribPointer(aColor, 3, GLES20.GL_FLOAT, false, 24, buf)
+            GLES20.glEnableVertexAttribArray(aUV)
+            GLES20.glVertexAttribPointer(aUV, 2, GLES20.GL_FLOAT, false, stride, buf)
+
+            buf.position(5)
+            GLES20.glEnableVertexAttribArray(aShade)
+            GLES20.glVertexAttribPointer(aShade, 1, GLES20.GL_FLOAT, false, stride, buf)
 
             GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexCount)
 
             GLES20.glDisableVertexAttribArray(aPos)
-            GLES20.glDisableVertexAttribArray(aColor)
+            GLES20.glDisableVertexAttribArray(aUV)
+            GLES20.glDisableVertexAttribArray(aShade)
         }
     }
 
@@ -134,8 +158,11 @@ class GameRenderer(
             input.placeRequested = false
             val hit = raycast()
             if (hit != null) {
-                world.setBlock(hit.prevX, hit.prevY, hit.prevZ, 3)
-                meshDirty = true
+                // Не ставить блок внутрь игрока
+                if (!blockOverlapsPlayer(hit.prevX, hit.prevY, hit.prevZ)) {
+                    world.setBlock(hit.prevX, hit.prevY, hit.prevZ, 3)
+                    meshDirty = true
+                }
             }
         }
 
@@ -184,13 +211,34 @@ class GameRenderer(
         }
     }
 
+    private fun blockOverlapsPlayer(bx: Int, by: Int, bz: Int): Boolean {
+        val pminX = px - playerHalfWidth
+        val pmaxX = px + playerHalfWidth
+        val pminY = py
+        val pmaxY = py + playerHeight
+        val pminZ = pz - playerHalfWidth
+        val pmaxZ = pz + playerHalfWidth
+
+        val bminX = bx.toDouble()
+        val bmaxX = bx + 1.0
+        val bminY = by.toDouble()
+        val bmaxY = by + 1.0
+        val bminZ = bz.toDouble()
+        val bmaxZ = bz + 1.0
+
+        val overlapX = pminX < bmaxX && pmaxX > bminX
+        val overlapY = pminY < bmaxY && pmaxY > bminY
+        val overlapZ = pminZ < bmaxZ && pmaxZ > bminZ
+        return overlapX && overlapY && overlapZ
+    }
+
     private fun collides(): Boolean {
-        val minX = floor(px - 0.3).toInt()
-        val maxX = floor(px + 0.3).toInt()
+        val minX = floor(px - playerHalfWidth).toInt()
+        val maxX = floor(px + playerHalfWidth).toInt()
         val minY = floor(py).toInt()
-        val maxY = floor(py + 1.8).toInt()
-        val minZ = floor(pz - 0.3).toInt()
-        val maxZ = floor(pz + 0.3).toInt()
+        val maxY = floor(py + playerHeight).toInt()
+        val minZ = floor(pz - playerHalfWidth).toInt()
+        val maxZ = floor(pz + playerHalfWidth).toInt()
 
         for (x in minX..maxX) {
             for (y in minY..maxY) {
@@ -217,7 +265,7 @@ class GameRenderer(
 
     private fun raycast(): RayHit? {
         val eyeX = px
-        val eyeY = py + 1.62
+        val eyeY = py + eyeHeight
         val eyeZ = pz
         val d = direction()
 
@@ -251,6 +299,22 @@ class GameRenderer(
         vertexBuffer = fb
     }
 
+    private fun loadTexture(): Int {
+        val ids = IntArray(1)
+        GLES20.glGenTextures(1, ids, 0)
+        val id = ids[0]
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, id)
+
+        // nearest — как в майнкрафте, чтобы текстуры были "пиксельные"
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+
+        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, world.atlas, 0)
+        return id
+    }
+
     private fun createProgram(): Int {
         val vs = compileShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER)
         val fs = compileShader(GLES20.GL_FRAGMENT_SHADER, FRAGMENT_SHADER)
@@ -275,22 +339,28 @@ class GameRenderer(
     companion object {
         private const val VERTEX_SHADER = """
             attribute vec3 aPos;
-            attribute vec3 aColor;
+            attribute vec2 aUV;
+            attribute float aShade;
             uniform mat4 uMVP;
-            varying vec3 vColor;
+            varying vec2 vUV;
+            varying float vShade;
 
             void main() {
                 gl_Position = uMVP * vec4(aPos, 1.0);
-                vColor = aColor;
+                vUV = aUV;
+                vShade = aShade;
             }
         """
 
         private const val FRAGMENT_SHADER = """
             precision mediump float;
-            varying vec3 vColor;
+            varying vec2 vUV;
+            varying float vShade;
+            uniform sampler2D uTex;
 
             void main() {
-                gl_FragColor = vec4(vColor, 1.0);
+                vec4 c = texture2D(uTex, vUV);
+                gl_FragColor = vec4(c.rgb * vShade, 1.0);
             }
         """
     }
