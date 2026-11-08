@@ -3,10 +3,11 @@ package com.example.minicraft
 import android.content.Context
 import android.opengl.GLSurfaceView
 import android.view.MotionEvent
+import java.io.File
 
-class GameView(context: Context) : GLSurfaceView(context) {
+class GameView(context: Context, worldFile: File) : GLSurfaceView(context) {
     val input = InputState()
-    private val renderer = GameRenderer(input)
+    private val renderer = GameRenderer(input, worldFile)
     private var lastX = 0f
     private var lastY = 0f
 
