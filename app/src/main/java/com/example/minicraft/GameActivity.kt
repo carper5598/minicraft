@@ -3,15 +3,29 @@ package com.example.minicraft
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import java.io.File
 
 class GameActivity : Activity() {
 
     private lateinit var gameView: GameView
+    private val hotbarButtons = arrayOfNulls<Button>(4)
+    private val handler = Handler(Looper.getMainLooper())
+
+    private val blockNames = arrayOf("", "Трава", "Земля", "Камень")
+
+    private val hotbarUpdater = object : Runnable {
+        override fun run() {
+            refreshHotbar()
+            handler.postDelayed(this, 150)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,11 +54,7 @@ class GameActivity : Activity() {
             )
         )
 
-        val input = gameView.input
-        val start = Gravity.BOTTOM or Gravity.START
-        val end = Gravity.BOTTOM or Gravity.END
-
-        // Кнопка "Меню" сверху слева
+        // Кнопка возврата в меню сверху слева
         val menuBtn = Button(this)
         menuBtn.text = "← Меню"
         menuBtn.textSize = 16f
@@ -54,11 +64,14 @@ class GameActivity : Activity() {
         menuLp.leftMargin = dp(12)
         menuLp.topMargin = dp(12)
         menuBtn.layoutParams = menuLp
-        menuBtn.setOnClickListener {
-            // Возврат в список миров (WorldsActivity)
-            finish()
-        }
+        menuBtn.setOnClickListener { finish() }
         root.addView(menuBtn)
+
+        buildHotbar(root)
+
+        val input = gameView.input
+        val start = Gravity.BOTTOM or Gravity.START
+        val end = Gravity.BOTTOM or Gravity.END
 
         holdButton(root, "↑", start, 80, 120, 0) { input.moveForward = it }
         holdButton(root, "↓", start, 80, 20, 0) { input.moveBack = it }
@@ -69,6 +82,57 @@ class GameActivity : Activity() {
         holdButton(root, "⤒", end, 0, 20, 20) { input.jump = it }
 
         setContentView(root)
+        handler.post(hotbarUpdater)
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
+    }
+
+    private fun buildHotbar(root: FrameLayout) {
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+
+        val lp = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        )
+        lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        lp.bottomMargin = dp(16)
+        row.layoutParams = lp
+
+        for (i in 1..3) {
+            val b = Button(this)
+            b.textSize = 13f
+            val p = LinearLayout.LayoutParams(dp(96), dp(64))
+            p.marginEnd = dp(6)
+            b.layoutParams = p
+            val index = i
+            b.setOnClickListener {
+                gameView.input.selectedSlot = index
+                refreshHotbar()
+            }
+            row.addView(b)
+            hotbarButtons[i] = b
+        }
+
+        root.addView(row)
+    }
+
+    private fun refreshHotbar() {
+        val inv = gameView.input.inventory
+        val sel = gameView.input.selectedSlot
+        for (i in 1..3) {
+            val b = hotbarButtons[i] ?: continue
+            val count = inv.get(i)
+            val name = blockNames[i]
+            b.text = "$name\n$count"
+            b.alpha = if (sel == i) 1.0f else 0.6f
+            b.setBackgroundColor(
+                if (sel == i) 0xAAFFFFFF.toInt() else 0x55FFFFFF
+            )
+        }
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
