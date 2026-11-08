@@ -4,6 +4,7 @@ import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.opengl.GLUtils
 import android.opengl.Matrix
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -14,9 +15,12 @@ import kotlin.math.floor
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-class GameRenderer(private val input: InputState) : GLSurfaceView.Renderer {
+class GameRenderer(
+    private val input: InputState,
+    private val worldFile: File
+) : GLSurfaceView.Renderer {
 
-    private val world = World()
+    private val world = World(worldFile)
 
     private var program = 0
     private var aPos = 0
@@ -31,6 +35,7 @@ class GameRenderer(private val input: InputState) : GLSurfaceView.Renderer {
     private var dirty = true
 
     private var lastT = 0L
+    private var lastSave = 0L
     private var aspect = 1f
 
     private var px = 32.0
@@ -70,6 +75,7 @@ class GameRenderer(private val input: InputState) : GLSurfaceView.Renderer {
         texId = loadTexture()
         dirty = true
         lastT = System.nanoTime()
+        lastSave = System.nanoTime()
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -84,6 +90,11 @@ class GameRenderer(private val input: InputState) : GLSurfaceView.Renderer {
         if (dt > 0.05) dt = 0.05
 
         update(dt)
+
+        if (now - lastSave > 3_000_000_000L) {
+            world.save(worldFile)
+            lastSave = now
+        }
 
         if (dirty) {
             upload(world.buildMesh())
