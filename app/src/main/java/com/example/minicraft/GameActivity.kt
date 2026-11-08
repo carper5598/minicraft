@@ -1,6 +1,7 @@
 package com.example.minicraft
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
 import android.view.MotionEvent
@@ -42,6 +43,22 @@ class GameActivity : Activity() {
         val input = gameView.input
         val start = Gravity.BOTTOM or Gravity.START
         val end = Gravity.BOTTOM or Gravity.END
+
+        // Кнопка "Меню" сверху слева
+        val menuBtn = Button(this)
+        menuBtn.text = "← Меню"
+        menuBtn.textSize = 16f
+        menuBtn.alpha = 0.7f
+        val menuLp = FrameLayout.LayoutParams(dp(110), dp(48))
+        menuLp.gravity = Gravity.TOP or Gravity.START
+        menuLp.leftMargin = dp(12)
+        menuLp.topMargin = dp(12)
+        menuBtn.layoutParams = menuLp
+        menuBtn.setOnClickListener {
+            // Возврат в список миров (WorldsActivity)
+            finish()
+        }
+        root.addView(menuBtn)
 
         holdButton(root, "↑", start, 80, 120, 0) { input.moveForward = it }
         holdButton(root, "↓", start, 80, 20, 0) { input.moveBack = it }
