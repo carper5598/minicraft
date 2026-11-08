@@ -133,13 +133,26 @@ class GameRenderer(private val input: InputState) : GLSurfaceView.Renderer {
     private fun update(dt: Double) {
         if (input.breakRequested) {
             input.breakRequested = false
-            raycast()?.let { world.setBlock(it.x, it.y, it.z, 0); dirty = true }
+            raycast()?.let {
+                val type = world.getBlock(it.x, it.y, it.z).toInt()
+                if (type in 1..3) {
+                    world.setBlock(it.x, it.y, it.z, 0)
+                    input.inventory.incrementAndGet(type)
+                    dirty = true
+                }
+            }
         }
+
         if (input.placeRequested) {
             input.placeRequested = false
             raycast()?.let {
-                if (!overlapsPlayer(it.px, it.py, it.pz)) {
-                    world.setBlock(it.px, it.py, it.pz, 3)
+                val slot = input.selectedSlot
+                if (slot in 1..3 &&
+                    input.inventory.get(slot) > 0 &&
+                    !overlapsPlayer(it.px, it.py, it.pz)
+                ) {
+                    world.setBlock(it.px, it.py, it.pz, slot.toByte())
+                    input.inventory.decrementAndGet(slot)
                     dirty = true
                 }
             }
@@ -204,7 +217,7 @@ class GameRenderer(private val input: InputState) : GLSurfaceView.Renderer {
     }
 
     private data class Hit(val x: Int, val y: Int, val z: Int,
-                          val px: Int, val py: Int, val pz: Int)
+                           val px: Int, val py: Int, val pz: Int)
 
     private fun raycast(): Hit? {
         val ex = px; val ey = py + eyeH; val ez = pz
