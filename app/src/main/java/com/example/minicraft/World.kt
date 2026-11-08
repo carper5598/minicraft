@@ -4,6 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.File
 import java.util.Random
 import kotlin.math.cos
 import kotlin.math.sin
@@ -20,7 +23,15 @@ class World(val sx: Int = 64, val sy: Int = 32, val sz: Int = 64) {
     val atlas: Bitmap = buildAtlas()
 
     init {
-        generate()
+        // generate() только для нового мира; если blocks уже заполнены
+        // (загрузка из файла через load()), не трогаем.
+        if (blocks.all { it == 0.toByte() }) generate()
+    }
+
+    constructor(file: File) : this() {
+        if (file.exists() && file.length() > 0) {
+            load(file)
+        }
     }
 
     private fun idx(x: Int, y: Int, z: Int): Int = (y * sz + z) * sx + x
@@ -55,6 +66,35 @@ class World(val sx: Int = 64, val sy: Int = 32, val sz: Int = 64) {
                     setBlock(x, y, z, t)
                 }
             }
+        }
+    }
+
+    fun save(file: File) {
+        file.parentFile?.mkdirs()
+        DataOutputStream(file.outputStream().buffered()).use { out ->
+            out.writeInt(sx)
+            out.writeInt(sy)
+            out.writeInt(sz)
+            out.write(blocks)
+        }
+    }
+
+    private fun load(file: File) {
+        try {
+            DataInputStream(file.inputStream().buffered()).use { inp ->
+                val fx = inp.readInt()
+                val fy = inp.readInt()
+                val fz = inp.readInt()
+                if (fx != sx || fy != sy || fz != sz) {
+                    // Несовпадение размеров — генерируем новый мир.
+                    generate()
+                    return
+                }
+                inp.readFully(blocks)
+            }
+        } catch (e: Exception) {
+            // Повреждённый файл — генерируем новый.
+            generate()
         }
     }
 
